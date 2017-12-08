@@ -311,10 +311,13 @@ class NINJSFormatter(Formatter):
         return [{'name': item.get('name'), 'code': item.get('qcode')} for item in items]
 
     def _format_place(self, items):
-        locator_map = superdesk.get_resource_service('vocabularies').find_one(req=None, _id='locators')
+        vocabularies_service = superdesk.get_resource_service('vocabularies')
+        locator_map = vocabularies_service.find_one(req=None, _id='locators')
 
         def getLabel(item):
-            locators = [l for l in locator_map.get('items', []) if l['qcode'] == item.get('qcode')]
+            locale_locators = vocabularies_service.get_locale_vocabulary(
+                locator_map.get('items'), item.get('language')) or []
+            locators = [l for l in locale_locators if l['qcode'] == item.get('qcode')]
             if locators and len(locators) == 1:
                 return locators[0].get('state') or \
                     locators[0].get('country') or \
@@ -350,8 +353,11 @@ class NINJSFormatter(Formatter):
 
     def _format_authors(self, article):
         users_service = superdesk.get_resource_service('users')
-        vocabularies_service = superdesk.get_resource_service("vocabularies")
+        vocabularies_service = superdesk.get_resource_service('vocabularies')
         job_titles_voc = vocabularies_service.find_one(None, _id='job_titles')
+        if job_titles_voc and 'items' in job_titles_voc:
+            job_titles_voc['items'] = vocabularies_service.get_locale_vocabulary(
+                job_titles_voc.get('items'), article.get('language'))
         job_titles_map = {v['qcode']: v['name'] for v in job_titles_voc['items']} if job_titles_voc is not None else {}
 
         authors = []
